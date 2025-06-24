@@ -4,3 +4,4 @@ langgraph
 ipykernel
 amadeus
 langchain_openai
+streamlit
