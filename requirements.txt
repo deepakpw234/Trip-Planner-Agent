@@ -1,0 +1,6 @@
+langchain
+langchain_community
+langgraph
+ipykernel
+amadeus
+langchain_openai
