@@ -12,6 +12,7 @@ from typing import Annotated
 from src.agent_tools.tools import AllTools
 
 import streamlit as st
+from streamlit.components.v1 import html
 import requests
 import os
 
@@ -21,21 +22,65 @@ load_dotenv()
 st.set_page_config(page_title="Trip Planner", page_icon="🤖")
 st.title("Trip Planner Agent")
 
+# Creating State
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
+# Initializing State in session
 if 'state' not in st.session_state:
     st.session_state.state = State(messages=[])
 
 
-user_input = st.text_input("You: ",key='user_input',placeholder="Type your message and press Enter")
+# Loading Layout for Agent
+with open("src\layout\logic_agent.js",'r') as f:
+    js = f"<script>{f.read()}</script>"
 
-session_id = st.selectbox("Please select the session state",options=['current','new'])
 
-if user_input:
+with open("src\layout\css_agent.css",'r') as f:
+    css = f"<style>{f.read()}</style>"
 
-    st.session_state.state['messages'].append(HumanMessage(content=user_input))
+with open("src\layout\html_agent.html",'r') as f:
+    html_template = f.read()
+
+# Input handling
+def add_message():
+    user_input = st.session_state.user_input.strip()
+    if user_input:
+
+        st.session_state.state['messages'].append(HumanMessage(content=user_input))
+
+        config = {'configurable':{'thread_id':session_id}}
+
+        response = st.session_state.graph.invoke(st.session_state.state , config=config)
+
+        st.session_state.state = response
+
+        for m in response['messages']:
+            m.pretty_print()
+
+
+
+        # st.session_state.state['messages'].append(("user", user_input))
+        # bot_reply = f"You said: {user_input}"
+        # st.session_state.state['messages'].append(("bot", bot_reply))
+        # st.session_state.user_input = ""  # Clear input
+
+# Generate messages HTML
+messages_html = ""
+for role, msg in reversed(st.session_state.state['messages']):
+    messages_html += f'<div class="message {role}">{msg}</div>'
+
+
+# # Inject the HTML + JS
+final_html = html_template.format(messages_html=messages_html)
+html(css + final_html + js,height=530)
+
+
+session_id = st.sidebar.selectbox("Please select the session state",options=['current','new'])
+
+
+if "graph" not in st.session_state:
 
     llm = ChatOpenAI()
 
@@ -64,25 +109,65 @@ if user_input:
     memory = MemorySaver()
 
 
-    graph = graph_builder.compile(checkpointer=memory)
+    st.session_state.graph = graph_builder.compile(checkpointer=memory)
 
     with open("graph_output.png", "wb") as f:
-        f.write(graph.get_graph().draw_mermaid_png())
+        f.write(st.session_state.graph.get_graph().draw_mermaid_png())
 
 
-    config = {'configurable':{'thread_id':session_id}}
-
-    response = graph.invoke(st.session_state.state , config=config)
-
-    st.session_state.state = response
-
-    for m in response['messages']:
-        m.pretty_print()
+with st.form('input_form',clear_on_submit=True):
+    col1, col2 = st.columns([8,1])
+    with col1:
+        user_input = st.text_input("User Input",label_visibility='collapsed',placeholder="Type a message...",key="user_input")
+    with col2:
+        submitted = st.form_submit_button("Send",on_click=add_message)
 
 
-st.markdown("### Conversation:")
-for msg in st.session_state.state['messages']:
-    if isinstance(msg, HumanMessage):
-        st.markdown(f"🧑 **You:** {msg.content}")
-    elif isinstance(msg, AIMessage):
-        st.markdown(f"🤖 **Bot:** {msg.content}")
+# if submitted and user_input.strip():
+
+#     st.session_state.state['messages'].append(HumanMessage(content=user_input))
+
+#     config = {'configurable':{'thread_id':session_id}}
+
+#     response = st.session_state.graph.invoke(st.session_state.state , config=config)
+
+#     st.session_state.state = response
+
+#     for m in response['messages']:
+#         m.pretty_print()
+
+
+
+    # st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
+    # for msg in st.session_state.state['messages']:
+    #     role_class = "user" if isinstance(msg, HumanMessage) else "bot"
+    #     st.markdown(f'<div class="message {role_class}">{msg.content}</div>', unsafe_allow_html=True)
+
+
+    
+    # messages_html = ""
+    # for role, msg in reversed(st.session_state.messages):
+    #     messages_html += f'<div class="message {role}">{msg}</div>'
+
+    # final_html = html_template.format(messages_html=messages_html)
+    # html(css + final_html + js,height=530)
+
+    
+    messages_html = ""
+    for msg in st.session_state.state['messages']:
+        role_class = "user" if isinstance(msg, HumanMessage) else "bot"
+        messages_html += f'<div class="message {role_class}">{msg.content}</div>'
+
+    final_html = html_template.format(messages_html=messages_html)
+    html(css + final_html + js,height=530)
+
+
+
+
+
+# st.markdown("### Conversation:")
+# for msg in st.session_state.state['messages']:
+#     if isinstance(msg, HumanMessage):
+#         st.markdown(f"🧑 **You:** {msg.content}")
+#     elif isinstance(msg, AIMessage):
+#         st.markdown(f"🤖 **Bot:** {msg.content}")
