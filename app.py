@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 st.set_page_config(page_title="Trip Planner", page_icon="🤖")
-st.title("Trip Planner Agent")
+st.title("🤖 Trip Planner Agent")
 
 # Creating State
 class State(TypedDict):
@@ -43,6 +43,10 @@ with open("src\layout\css_agent.css",'r') as f:
 with open("src\layout\html_agent.html",'r') as f:
     html_template = f.read()
 
+session_id = st.sidebar.selectbox("Please select the session state",options=['current','new'])
+
+config = {'configurable':{'thread_id':session_id}}
+
 # Input handling
 def add_message():
     user_input = st.session_state.user_input.strip()
@@ -50,69 +54,67 @@ def add_message():
 
         st.session_state.state['messages'].append(HumanMessage(content=user_input))
 
-        config = {'configurable':{'thread_id':session_id}}
+        print(config["configurable"]['thread_id'])
 
-        response = st.session_state.graph.invoke(st.session_state.state , config=config)
+        response = graph.invoke(st.session_state.state , config=config)
 
         st.session_state.state = response
 
-        for m in response['messages']:
-            m.pretty_print()
+        # for m in response['messages']:
+        #     m.pretty_print()
 
+        print(response['messages'])
+        
 
-
-        # st.session_state.state['messages'].append(("user", user_input))
-        # bot_reply = f"You said: {user_input}"
-        # st.session_state.state['messages'].append(("bot", bot_reply))
-        # st.session_state.user_input = ""  # Clear input
-
-# Generate messages HTML
+    
 messages_html = ""
-for role, msg in reversed(st.session_state.state['messages']):
-    messages_html += f'<div class="message {role}">{msg}</div>'
+for msg in reversed(st.session_state.state['messages']):
+    if isinstance(msg, HumanMessage):
+        role_class = 'user'
+        messages_html += f'<div class="message {role_class}">{msg.content}</div>'
+
+    elif isinstance(msg, AIMessage) and msg.content != "":
+        role_class = 'bot'
+        messages_html += f'<div class="message {role_class}">{msg.content}</div>'
 
 
-# # Inject the HTML + JS
+
 final_html = html_template.format(messages_html=messages_html)
-html(css + final_html + js,height=530)
+html(css + final_html + js,height=460)
 
 
-session_id = st.sidebar.selectbox("Please select the session state",options=['current','new'])
+
+llm = ChatOpenAI()
+
+tools = [AllTools.get_flight_details,AllTools.get_airport_code,AllTools.curreny_converter,
+        AllTools.collect_user_information,AllTools.book_flight_comfirmation]
+
+llm_with_tools = llm.bind_tools(tools=tools)
 
 
-if "graph" not in st.session_state:
-
-    llm = ChatOpenAI()
-
-    tools = [AllTools.get_flight_details,AllTools.get_airport_code,AllTools.curreny_converter,
-            AllTools.collect_user_information,AllTools.book_flight_comfirmation]
-
-    llm_with_tools = llm.bind_tools(tools=tools)
+def planner_chatbot(data):
+    messages = data['messages']
+    ai_message = llm_with_tools.invoke(messages)
+    messages.append(ai_message)
+    return {"messages": messages }
 
 
-    def planner_chatbot(data):
-        messages = data['messages']
-        ai_message = llm_with_tools.invoke(messages)
-        messages.append(ai_message)
-        return {"messages": messages }
+graph_builder = StateGraph(State)
+
+graph_builder.add_node('planner_chatbot',planner_chatbot)
+graph_builder.add_node('tools',ToolNode(tools=tools))
+
+graph_builder.add_edge(START,"planner_chatbot")
+graph_builder.add_conditional_edges("planner_chatbot",tools_condition)
+graph_builder.add_edge("tools","planner_chatbot")
+
+memory = MemorySaver()
 
 
-    graph_builder = StateGraph(State)
+graph = graph_builder.compile(checkpointer=memory)
 
-    graph_builder.add_node('planner_chatbot',planner_chatbot)
-    graph_builder.add_node('tools',ToolNode(tools=tools))
-
-    graph_builder.add_edge(START,"planner_chatbot")
-    graph_builder.add_conditional_edges("planner_chatbot",tools_condition)
-    graph_builder.add_edge("tools","planner_chatbot")
-
-    memory = MemorySaver()
-
-
-    st.session_state.graph = graph_builder.compile(checkpointer=memory)
-
-    with open("graph_output.png", "wb") as f:
-        f.write(st.session_state.graph.get_graph().draw_mermaid_png())
+with open("graph_output.png", "wb") as f:
+    f.write(graph.get_graph().draw_mermaid_png())
 
 
 with st.form('input_form',clear_on_submit=True):
@@ -123,51 +125,11 @@ with st.form('input_form',clear_on_submit=True):
         submitted = st.form_submit_button("Send",on_click=add_message)
 
 
-# if submitted and user_input.strip():
-
-#     st.session_state.state['messages'].append(HumanMessage(content=user_input))
-
-#     config = {'configurable':{'thread_id':session_id}}
-
-#     response = st.session_state.graph.invoke(st.session_state.state , config=config)
-
-#     st.session_state.state = response
-
-#     for m in response['messages']:
-#         m.pretty_print()
-
-
-
-    # st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
-    # for msg in st.session_state.state['messages']:
-    #     role_class = "user" if isinstance(msg, HumanMessage) else "bot"
-    #     st.markdown(f'<div class="message {role_class}">{msg.content}</div>', unsafe_allow_html=True)
-
 
     
-    # messages_html = ""
-    # for role, msg in reversed(st.session_state.messages):
-    #     messages_html += f'<div class="message {role}">{msg}</div>'
-
-    # final_html = html_template.format(messages_html=messages_html)
-    # html(css + final_html + js,height=530)
-
-    
-    messages_html = ""
-    for msg in st.session_state.state['messages']:
-        role_class = "user" if isinstance(msg, HumanMessage) else "bot"
-        messages_html += f'<div class="message {role_class}">{msg.content}</div>'
-
-    final_html = html_template.format(messages_html=messages_html)
-    html(css + final_html + js,height=530)
 
 
 
 
 
-# st.markdown("### Conversation:")
-# for msg in st.session_state.state['messages']:
-#     if isinstance(msg, HumanMessage):
-#         st.markdown(f"🧑 **You:** {msg.content}")
-#     elif isinstance(msg, AIMessage):
-#         st.markdown(f"🤖 **Bot:** {msg.content}")
+
