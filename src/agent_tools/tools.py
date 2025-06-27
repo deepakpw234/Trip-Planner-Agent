@@ -32,6 +32,17 @@ class AllTools:
         )
 
         return response.data[0:2]
+    
+
+    def get_cheapest_flight_details(origin: str, destination: str):
+        '''This function provide the cheapest dates to travel from one city to another city'''
+
+        amadeus_cheapest_flight_client = Client()
+
+        cheapest_response = amadeus_cheapest_flight_client.shopping.flight_dates.get(origin=origin,destination=destination)
+
+        return cheapest_response
+    
 
     def get_airport_code(city:str):
         '''This function provide the airport code based on given city'''

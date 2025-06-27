@@ -88,7 +88,7 @@ html(css + final_html + js,height=460)
 
 llm = ChatOpenAI()
 
-tools = [AllTools.get_flight_details,AllTools.get_airport_code,AllTools.curreny_converter,
+tools = [AllTools.get_flight_details,AllTools.get_cheapest_flight_details,AllTools.get_airport_code,AllTools.curreny_converter,
         AllTools.collect_user_information,AllTools.book_flight_comfirmation]
 
 llm_with_tools = llm.bind_tools(tools=tools)
