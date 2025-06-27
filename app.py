@@ -58,15 +58,17 @@ def add_message():
 
         response = graph.invoke(st.session_state.state , config=config)
 
+        
+
         st.session_state.state = response
 
         # for m in response['messages']:
         #     m.pretty_print()
 
         print(response['messages'])
-        
 
-    
+        
+ 
 messages_html = ""
 for msg in reversed(st.session_state.state['messages']):
     if isinstance(msg, HumanMessage):
@@ -115,7 +117,6 @@ graph = graph_builder.compile(checkpointer=memory)
 
 with open("graph_output.png", "wb") as f:
     f.write(graph.get_graph().draw_mermaid_png())
-
 
 with st.form('input_form',clear_on_submit=True):
     col1, col2 = st.columns([8,1])
