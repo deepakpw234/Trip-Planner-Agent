@@ -5,3 +5,5 @@ ipykernel
 amadeus
 langchain_openai
 streamlit
+
+langgraph-cli[inmem]
