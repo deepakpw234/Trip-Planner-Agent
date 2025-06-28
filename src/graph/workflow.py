@@ -6,7 +6,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 
-from src.agent_tools.tools import AllTools
+from src.agent_tools.flight_tools import AllTools
 
 from dotenv import load_dotenv
 load_dotenv()

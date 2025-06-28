@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from typing_extensions import TypedDict
 from typing import Annotated
 
-from src.agent_tools.tools import AllTools
+from src.agent_tools.flight_tools import AllTools
 
 import streamlit as st
 import requests

@@ -9,7 +9,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from typing_extensions import TypedDict
 from typing import Annotated
 
-from src.agent_tools.tools import AllTools
+from src.agent_tools.flight_tools import AllTools
+from src.agent_tools.hotel_tools import HotelTools
 
 import streamlit as st
 from streamlit.components.v1 import html
@@ -62,10 +63,10 @@ def add_message():
 
         st.session_state.state = response
 
-        # for m in response['messages']:
-        #     m.pretty_print()
+        for m in response['messages']:
+            m.pretty_print()
 
-        print(response['messages'])
+        # print(response['messages'])
 
         
  
@@ -89,7 +90,8 @@ html(css + final_html + js,height=460)
 llm = ChatOpenAI()
 
 tools = [AllTools.get_flight_details,AllTools.get_cheapest_flight_details,AllTools.get_airport_code,AllTools.curreny_converter,
-        AllTools.collect_user_information,AllTools.book_flight_comfirmation]
+        AllTools.collect_user_information,AllTools.book_flight_comfirmation, HotelTools.get_hotel_list_by_city,HotelTools.get_hotel_details_by_hotelID,
+        HotelTools.final_confirmation_node,HotelTools.book_hotel_comfirmation]
 
 llm_with_tools = llm.bind_tools(tools=tools)
 
